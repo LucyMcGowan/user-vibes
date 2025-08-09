@@ -277,7 +277,8 @@ server <- function(input, output, session) {
     columnDefs = list(
       list(targets = c(2, 3, 5), className = "dt-center"),
       list(targets = 5, orderable = FALSE, width = "200px")
-    )
+    ),
+    scrollX = TRUE
   ))
   
   # Add JavaScript for moderator actions
