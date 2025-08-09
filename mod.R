@@ -317,31 +317,55 @@ server <- function(input, output, session) {
     ")
   })
   
+  # Helper function to update question status safely
+  updateQuestionStatus <- function(question_id, new_status) {
+    # Get a fresh copy of the data
+    current_questions <- read_questions()
+    
+    # Check if the question exists
+    if (question_id %in% current_questions$id) {
+      # Update the status
+      current_questions[current_questions$id == question_id, "status"] <- new_status
+      
+      # Write to Google Sheets first
+      if (write_questions(current_questions)) {
+        # Only update the reactive value if the write was successful
+        moderator_questions_data(current_questions)
+        
+        # Show success notification
+        status_message <- if(new_status == "asked") {
+          "Question marked as asked!"
+        } else if(new_status == "pending") {
+          "Question marked as pending!"
+        } else {
+          paste0("Question status updated to: ", new_status)
+        }
+        
+        status_type <- if(new_status == "asked") "success" else "info"
+        showNotification(status_message, type = status_type, duration = 3)
+        return(TRUE)
+      } else {
+        # Show error if write fails
+        showNotification("Failed to update question status. Please try again.", 
+                          type = "error", duration = 5)
+        return(FALSE)
+      }
+    } else {
+      showNotification("Question not found. The list may have been updated.", 
+                        type = "error", duration = 5)
+      return(FALSE)
+    }
+  }
+  
   # Handle mark as asked
   observeEvent(input$mark_asked_id, {
-    current_questions <- moderator_questions_data()
-    question_id <- input$mark_asked_id
-    
-    current_questions[current_questions$id == question_id, "status"] <- "asked"
-    moderator_questions_data(current_questions)
-    
-    if (write_questions(current_questions)) {
-      showNotification("Question marked as asked!", type = "success", duration = 3)
-    }
-  })
+    updateQuestionStatus(input$mark_asked_id, "asked")
+  }, ignoreInit = TRUE)
   
   # Handle mark as pending
   observeEvent(input$mark_pending_id, {
-    current_questions <- moderator_questions_data()
-    question_id <- input$mark_pending_id
-    
-    current_questions[current_questions$id == question_id, "status"] <- "pending"
-    moderator_questions_data(current_questions)
-    
-    if (write_questions(current_questions)) {
-      showNotification("Question marked as pending!", type = "info", duration = 3)
-    }
-  })
+    updateQuestionStatus(input$mark_pending_id, "pending")
+  }, ignoreInit = TRUE)
   
   # Handle delete question
   observeEvent(input$delete_question_id, {
