@@ -19,6 +19,12 @@ gs4_auth(
 # Google Sheets URL - your sheet ID
 SHEET_URL <- "163KZ9gJGxkjAhID2rB_zuZbevTzFYOnPkUWjc-VWG6c"
 
+# Make sure Sheet 2 exists for archives
+if(length(sheet_names(SHEET_URL)) < 2) {
+  sheet_add(SHEET_URL, "Archives")
+  message("Created Archives sheet")
+}
+
 message("Authentication complete. Sheet ID: ", SHEET_URL)
 
 # Define UI
@@ -61,6 +67,14 @@ ui <- dashboardPage(
                 "Reset All to Pending",
                 class = "btn-warning",
                 icon = icon("undo"),
+                style = "margin-left: 10px;"
+              ),
+              
+              actionButton(
+                "delete_all_questions",
+                "Archive & Delete All",
+                class = "btn-danger",
+                icon = icon("trash"),
                 style = "margin-left: 10px;"
               )
             ),
@@ -109,11 +123,11 @@ server <- function(input, output, session) {
     stringsAsFactors = FALSE
   ))
   
-  # Function to read from Google Sheets
-  read_questions <- function() {
+  # Function to read from Google Sheets (from active questions sheet)
+  read_questions <- function(sheet_number = 1) {
     tryCatch({
       # Try to read the data
-      data <- read_sheet(SHEET_URL, sheet = 1, col_types = "cccccc")
+      data <- read_sheet(SHEET_URL, sheet = sheet_number, col_types = "cccccc")
       
       # If empty sheet, create structure
       if (nrow(data) == 0 || ncol(data) == 0) {
@@ -177,7 +191,7 @@ server <- function(input, output, session) {
   }
   
   # Function to write to Google Sheets
-  write_questions <- function(data) {
+  write_questions <- function(data, sheet_number = 1) {
     tryCatch({
       # Ensure data has the right structure
       if (nrow(data) > 0) {
@@ -186,7 +200,7 @@ server <- function(input, output, session) {
       }
       
       # Write to sheet
-      sheet_write(data, ss = SHEET_URL, sheet = 1)
+      sheet_write(data, ss = SHEET_URL, sheet = sheet_number)
       message("Successfully wrote data to Google Sheets")
       return(TRUE)
     }, error = function(e) {
@@ -300,6 +314,15 @@ server <- function(input, output, session) {
           Shiny.setInputValue('delete_question_id', questionId, {priority: 'event'});
         }
       });
+
+      // Make sure Delete All button has confirmation dialog
+      $('#delete_all_questions').on('click', function() {
+        if (!confirm('Are you sure you want to delete ALL questions? This will archive them to Sheet 2 first, but they will be removed from the active questions list. This action cannot be undone.')) {
+          // If user cancels, prevent the normal action
+          event.stopPropagation();
+          event.preventDefault();
+        }
+      });
     ")
   })
   
@@ -352,6 +375,63 @@ server <- function(input, output, session) {
     updateQuestionStatus(input$mark_pending_id, "pending")
   }, ignoreInit = TRUE)
   
+  # Function to archive all questions and clear the current list
+  archiveAndDeleteAllQuestions <- function() {
+    # Read current questions from sheet 1
+    current_questions <- read_questions(1)
+    
+    # If there are questions to archive
+    if (nrow(current_questions) > 0) {
+      # Read existing archives from sheet 2
+      archive_questions <- read_questions(2)
+      
+      # Add timestamp for when questions were archived
+      current_questions$archived_at <- as.character(Sys.time())
+      
+      # Combine existing archives with current questions
+      if (nrow(archive_questions) > 0) {
+        # If archive already has data, append to it
+        combined_archives <- rbind(archive_questions, current_questions)
+      } else {
+        # If archive is empty, just use current questions
+        combined_archives <- current_questions
+      }
+      
+      # Write combined data to sheet 2 (archives)
+      archive_success <- write_questions(combined_archives, 2)
+      
+      if (archive_success) {
+        # Create empty dataframe for sheet 1
+        empty_data <- data.frame(
+          id = integer(0),
+          question = character(0),
+          submitter = character(0),
+          votes = integer(0),
+          timestamp = character(0),
+          status = character(0),
+          stringsAsFactors = FALSE
+        )
+        
+        # Clear sheet 1 by writing empty dataframe
+        clear_success <- write_questions(empty_data, 1)
+        
+        if (clear_success) {
+          return(TRUE)
+        } else {
+          showNotification("Failed to clear questions after archiving.", type = "error", duration = 5)
+          return(FALSE)
+        }
+      } else {
+        showNotification("Failed to archive questions.", type = "error", duration = 5)
+        return(FALSE)
+      }
+    } else {
+      # No questions to archive, just return success
+      showNotification("No questions to archive.", type = "message", duration = 3)
+      return(TRUE)
+    }
+  }
+  
   # Handle delete question
   observeEvent(input$delete_question_id, {
     current_questions <- moderator_questions_data()
@@ -364,6 +444,42 @@ server <- function(input, output, session) {
       showNotification("Question deleted!", type = "warning", duration = 3)
     }
   })
+  
+  # Handle delete all questions
+  observeEvent(input$delete_all_questions, {
+    showModal(modalDialog(
+      title = "Archive and Delete All Questions",
+      "Archiving questions to Sheet 2 and clearing active questions list...",
+      footer = NULL,
+      easyClose = FALSE
+    ))
+    
+    # Attempt to archive and delete all questions
+    success <- archiveAndDeleteAllQuestions()
+    
+    # Close the modal
+    removeModal()
+    
+    if (success) {
+      # Update the reactive data with empty data frame
+      moderator_questions_data(data.frame(
+        id = integer(0),
+        question = character(0),
+        submitter = character(0),
+        votes = integer(0),
+        timestamp = character(0),
+        status = character(0),
+        stringsAsFactors = FALSE
+      ))
+      
+      # Show success message
+      showNotification(
+        "All questions have been archived and deleted from the active list!", 
+        type = "success", 
+        duration = 5
+      )
+    }
+  }, ignoreInit = TRUE)
   
   # Statistics value boxes
   output$total_questions <- renderValueBox({
