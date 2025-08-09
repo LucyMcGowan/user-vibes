@@ -1,0 +1,11 @@
+id, prompt
+1, Write a shiny app that can allow many users at once 1. Submit questions 2. Vote for questions 3. Have a second app where a moderator can view questions mark some as asked and delete some if wanted
+2, here is the sheet: https://docs.google.com/spreadsheets/d/163KZ9gJGxkjAhID2rB_zuZbevTzFYOnPkUWjc-VWG6c/edit?usp=sharing
+3, I need you to replace the data backend with the sheet so both moderator and questions are accessing same database. googlesheets4
+4, "voting doesn't seem to work also got this error: Warning: Error in match.arg: 'arg' should be one of “default”, “message”, “warning”, “error” 88: stop 87: match.arg 84: showNotification 83: observe [#101] 82: <observer:observeEvent(input$refresh_questions)> 3: runApp 2: print.shiny.appobj 1: <Anonymous> also getting an auth error although it should be public"
+5, "1: runApp Error in exprToQuo(handlerExpr, handler.env, handler.quoted) : argument expr is missing with no default"
+6, "q&a also broken"
+7, please fix the q&a file too
+8, "Error writing to Google Sheets: Client error: (401) UNAUTHENTICATED shouldn't it work because it is published or no?"
+9, it is set to anyone can edit
+10, no lets just authenticate
