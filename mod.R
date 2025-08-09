@@ -299,21 +299,6 @@ server <- function(input, output, session) {
           Shiny.setInputValue('delete_question_id', questionId, {priority: 'event'});
         }
       });
-      
-      // Alternative functions for manual calls
-      window.mark_asked = function(question_id) {
-        Shiny.setInputValue('mark_asked_id', question_id, {priority: 'event'});
-      };
-      
-      window.mark_pending = function(question_id) {
-        Shiny.setInputValue('mark_pending_id', question_id, {priority: 'event'});
-      };
-      
-      window.delete_question = function(question_id) {
-        if (confirm('Are you sure you want to delete this question? This action cannot be undone.')) {
-          Shiny.setInputValue('delete_question_id', question_id, {priority: 'event'});
-        }
-      };
     ")
   })
   
