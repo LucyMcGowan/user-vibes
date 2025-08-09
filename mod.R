@@ -187,9 +187,11 @@ server <- function(input, output, session) {
       
       # Write to sheet
       sheet_write(data, ss = SHEET_URL, sheet = 1)
+      message("Successfully wrote data to Google Sheets")
       return(TRUE)
     }, error = function(e) {
       message("Error writing to Google Sheets: ", e$message)
+      showNotification(paste("Error saving to Google Sheets:", e$message), type = "error", duration = 5)
       return(FALSE)
     })
   }
@@ -231,19 +233,19 @@ server <- function(input, output, session) {
         '<div class="btn-group" role="group">',
         '<button class="btn btn-xs btn-success mark-asked-btn" data-id="', 
         display_questions$id, 
-        '" onclick="mark_asked(', display_questions$id, ')" ',
+        '" ',
         ifelse(display_questions$status == "asked", 'disabled', ''), '>
         <i class="fa fa-check"></i> Mark Asked
         </button>',
         '<button class="btn btn-xs btn-warning mark-pending-btn" data-id="', 
         display_questions$id, 
-        '" onclick="mark_pending(', display_questions$id, ')" ',
+        '" ',
         ifelse(display_questions$status == "pending", 'disabled', ''), '>
         <i class="fa fa-clock-o"></i> Mark Pending
         </button>',
         '<button class="btn btn-xs btn-danger delete-btn" data-id="', 
         display_questions$id, 
-        '" onclick="delete_question(', display_questions$id, ')">
+        '">
         <i class="fa fa-trash"></i> Delete
         </button>',
         '</div>'

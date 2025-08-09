@@ -190,10 +190,12 @@ server <- function(input, output, session) {
     })
   }
   
-  # Load existing questions on startup
-  observeEvent(reactiveVal(1), {
+  # Load existing questions on startup and set up auto-refresh
+  observe({
     questions_data(read_questions())
-  }, once = TRUE)
+    # Auto-refresh questions every 10 seconds
+    invalidateLater(10000)
+  })
   
   # Submit question
   observeEvent(input$submit_question, {
@@ -252,12 +254,17 @@ server <- function(input, output, session) {
           </button>'
         )
         
-        # Add status badges
-        display_questions$status_badge <- ifelse(
-          display_questions$status == "asked",
-          '<span class="label label-success">Asked</span>',
-          '<span class="label label-default">Pending</span>'
-        )
+        # Add status badges with better handling of different statuses
+        display_questions$status_badge <- sapply(display_questions$status, function(status) {
+          if (status == "asked") {
+            '<span class="label label-success">Asked</span>'
+          } else if (status == "pending") {
+            '<span class="label label-default">Pending</span>'
+          } else {
+            # Fallback for any other status
+            '<span class="label label-default">Pending</span>'
+          }
+        })
         
         # Select columns for display
         display_questions <- display_questions[, c("question", "submitter", "vote_button", "status_badge", "timestamp")]
