@@ -386,7 +386,7 @@ server <- function(input, output, session) {
       archive_questions <- read_questions(2)
       
       # Add timestamp for when questions were archived
-      current_questions$archived_at <- as.character(Sys.time())
+      #current_questions$archived_at <- as.character(Sys.time())
       
       # Combine existing archives with current questions
       if (nrow(archive_questions) > 0) {
@@ -475,7 +475,7 @@ server <- function(input, output, session) {
       # Show success message
       showNotification(
         "All questions have been archived and deleted from the active list!", 
-        type = "success", 
+        type = "message", 
         duration = 5
       )
     }
