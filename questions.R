@@ -24,18 +24,12 @@ message("Authentication complete. Sheet ID: ", SHEET_URL)
 ui <- dashboardPage(
   dashboardHeader(title = "Q&A Session - Submit & Vote"),
   
-  dashboardSidebar(
-    sidebarMenu(
-      menuItem("Questions", tabName = "questions", icon = icon("question-circle"))
-    )
-  ),
+  dashboardSidebar(disable = TRUE),
   
   dashboardBody(
     useShinyjs(),
     
-    tabItems(
-      tabItem(
-        tabName = "questions",
+    fluidPage(
         
         fluidRow(
           box(
@@ -91,7 +85,6 @@ ui <- dashboardPage(
       )
     )
   )
-)
 
 # Define Server
 server <- function(input, output, session) {
