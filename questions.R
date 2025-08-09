@@ -285,7 +285,8 @@ server <- function(input, output, session) {
     columnDefs = list(
       list(targets = c(2, 3), orderable = FALSE, width = "120px"),
       list(targets = 4, width = "150px")
-    )
+    ),
+    scrollX = TRUE
   ))
   
   # Add JavaScript for voting
