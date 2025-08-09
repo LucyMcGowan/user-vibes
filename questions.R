@@ -190,9 +190,20 @@ server <- function(input, output, session) {
     })
   }
   
+  # Keep track of last refresh time to avoid race conditions
+  last_refresh_time <- reactiveVal(Sys.time())
+  
+  # Track if a submission is in progress
+  submission_in_progress <- reactiveVal(FALSE)
+  
   # Load existing questions on startup and set up auto-refresh
   observe({
-    questions_data(read_questions())
+    # Only refresh if no submission is in progress
+    if (!submission_in_progress()) {
+      questions_data(read_questions())
+      last_refresh_time(Sys.time())
+    }
+    
     # Auto-refresh questions every 10 seconds
     invalidateLater(10000)
   })
@@ -200,8 +211,14 @@ server <- function(input, output, session) {
   # Submit question
   observeEvent(input$submit_question, {
     if (input$question_text != "") {
-      current_questions <- questions_data()
-      new_id <- ifelse(nrow(current_questions) == 0, 1, max(current_questions$id, na.rm = TRUE) + 1)
+      # Mark that submission is in progress to prevent auto-refresh
+      submission_in_progress(TRUE)
+      
+      # Get the most recent data from Google Sheets to avoid race conditions
+      fresh_questions <- read_questions()
+      
+      # Generate a new ID based on the fresh data
+      new_id <- ifelse(nrow(fresh_questions) == 0, 1, max(fresh_questions$id, na.rm = TRUE) + 1)
       
       new_question <- data.frame(
         id = new_id,
@@ -213,26 +230,38 @@ server <- function(input, output, session) {
         stringsAsFactors = FALSE
       )
       
-      updated_questions <- rbind(current_questions, new_question)
-      questions_data(updated_questions)
+      # Use the fresh data when adding the new question
+      updated_questions <- rbind(fresh_questions, new_question)
       
       # Save to Google Sheets
       if (write_questions(updated_questions)) {
+        # Update local data only after successful write
+        questions_data(updated_questions)
+        
         showNotification("Question submitted successfully!", type = "message")
         # Clear inputs
         updateTextAreaInput(session, "question_text", value = "")
         updateTextInput(session, "submitter_name", value = "")
       }
+      
+      # Mark that submission is complete
+      submission_in_progress(FALSE)
     } else {
       showNotification("Please enter a question before submitting.", type = "warning")
     }
-  })
+  }, ignoreInit = TRUE)
   
   # Refresh questions
   observeEvent(input$refresh_questions, {
-    questions_data(read_questions())
-    showNotification("Questions refreshed!", type = "message")
-  })
+    # Only refresh if no submission is in progress
+    if (!submission_in_progress()) {
+      questions_data(read_questions())
+      last_refresh_time(Sys.time())
+      showNotification("Questions refreshed!", type = "message")
+    } else {
+      showNotification("Submission in progress, please try refreshing again in a moment.", type = "warning")
+    }
+  }, ignoreInit = TRUE)
   
   # Render questions table
   output$questions_table <- DT::renderDataTable({
@@ -305,23 +334,30 @@ server <- function(input, output, session) {
   # Handle voting
   observeEvent(input$vote_question_id, {
     if (!is.null(input$vote_question_id)) {
-      current_questions <- questions_data()
+      # Mark that an update is in progress
+      submission_in_progress(TRUE)
+      
+      # Get fresh data to avoid race conditions
+      fresh_questions <- read_questions()
       question_id <- input$vote_question_id
       
       # Find and update the vote count
-      if (question_id %in% current_questions$id) {
-        current_questions[current_questions$id == question_id, "votes"] <- 
-          current_questions[current_questions$id == question_id, "votes"] + 1
+      if (question_id %in% fresh_questions$id) {
+        fresh_questions[fresh_questions$id == question_id, "votes"] <- 
+          fresh_questions[fresh_questions$id == question_id, "votes"] + 1
         
-        questions_data(current_questions)
-        
-        # Save to Google Sheets
-        if (write_questions(current_questions)) {
+        # Save to Google Sheets first
+        if (write_questions(fresh_questions)) {
+          # Only update local data after successful write
+          questions_data(fresh_questions)
           showNotification("Vote recorded!", type = "message", duration = 2)
         }
       }
+      
+      # Mark that the update is complete
+      submission_in_progress(FALSE)
     }
-  })
+  }, ignoreInit = TRUE)
 }
 
 # Run the app
