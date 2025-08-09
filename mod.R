@@ -341,8 +341,7 @@ server <- function(input, output, session) {
           paste0("Question status updated to: ", new_status)
         }
         
-        status_type <- if(new_status == "asked") "success" else "info"
-        showNotification(status_message, type = status_type, duration = 3)
+        showNotification(status_message, type = "message", duration = 3)
         return(TRUE)
       } else {
         # Show error if write fails
